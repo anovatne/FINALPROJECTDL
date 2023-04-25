@@ -16,6 +16,9 @@ from configs.serde import *
 from models.biLSTM import *
 from models.CNN import *
 
+# Killing optional CPU driver warnings
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
+
 class Training:
     '''
     This class represents training process.
