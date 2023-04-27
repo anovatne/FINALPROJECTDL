@@ -1,6 +1,5 @@
 """
 Data loader for all parts
-
 @author: Soroosh Tayebi Arasteh <soroosh.arasteh@fau.de>
 https://github.com/tayebiarasteh/
 https://tayebiarasteh.com/
@@ -65,12 +64,40 @@ class data_provider_V2():
             Note: padding is done by adding <pad> (not zero!)
         :tokenize: the "tokenization" (the act of splitting the string into discrete "tokens") should be done using the spaCy tokenizer.
         '''
+        # if self.model_mode == 'RNN':
+        #     #Packed padded sequences
+        #     TEXT = data.Field(tokenize=self.tokenizer, include_lengths=True)  # For saving the length of sentences
+        # if self.model_mode == 'CNN':
+        #     TEXT = data.Field(tokenize=self.tokenizer, batch_first=True)  # batch dimension is the firs dimension here.
+        # LABEL = data.LabelField()
+        
         if self.model_mode == 'RNN':
-            #Packed padded sequences
-            TEXT = data.Field(tokenize=self.tokenizer, include_lengths=True)  # For saving the length of sentences
-        if self.model_mode == 'CNN':
-            TEXT = data.Field(tokenize=self.tokenizer, batch_first=True)  # batch dimension is the firs dimension here.
-        LABEL = data.LabelField()
+        # Packed padded sequences
+            TEXT = tf.keras.layers.Input(shape=(None,), dtype=tf.int32, name='text')  # For variable-length sequences
+            # LENGTH = tf.keras.layers.Input(shape=(), dtype=tf.int32, name='length')  # For saving the length of sentences
+            LABEL = tf.keras.layers.Input(shape=(), dtype=tf.int32, name='label')
+    
+        # # Tokenize the input text
+        #     tokenizer = Tokenizer()
+        #     text_seq = tokenizer(TEXT)
+    
+        # # Pad the sequences to have the same length
+        #     text_seq = pad_sequences(text_seq)
+    
+        # # Convert the length to a mask for the padded sequences
+        #     mask = tf.sequence_mask(LENGTH)
+    
+        elif self.model_mode == 'CNN':
+        # Batch dimension is the first dimension here
+            TEXT = tf.keras.layers.Input(shape=(None,), dtype=tf.int32, name='text')
+            LABEL = tf.keras.layers.Input(shape=(), dtype=tf.int32, name='label')
+    
+        # # Tokenize the input text
+        #     tokenizer = Tokenizer()
+        #     text_seq = tokenizer(TEXT)
+    
+        # # Pad the sequences to have the same length
+        #     text_seq = pad_sequences(text_seq, padding='post', truncating='post')
 
         fields = [('id', None), ('user_id', None),  ('label', LABEL), ('text', TEXT)]
         train_data, test_data = data.TabularDataset.splits(
@@ -107,15 +134,42 @@ class data_provider_V2():
         # We replace them with a special unknown or <unk> token.
 
         # for packed padded sequences all of the tensors within a batch need to be sorted by their lengths
+        # if self.split_ratio == 1:
+        #     valid_iterator = None
+        #     train_iterator, test_iterator = data.BucketIterator.splits((
+        #         train_data, test_data), batch_size=self.batch_size,
+        #         sort_within_batch=True, sort_key=lambda x: len(x.text))
+        # else:
+        #     train_iterator, valid_iterator, test_iterator = data.BucketIterator.splits((
+        #         train_data, valid_data, test_data), batch_size=self.batch_size,
+        #         sort_within_batch=True, sort_key=lambda x: len(x.text))
+        
         if self.split_ratio == 1:
             valid_iterator = None
-            train_iterator, test_iterator = data.BucketIterator.splits((
-                train_data, test_data), batch_size=self.batch_size,
-                sort_within_batch=True, sort_key=lambda x: len(x.text))
+            train_data = train_data.shuffle(buffer_size=len(train_data))
+            train_iterator = tf.data.Dataset.from_tensor_slices((train_data.text, train_data.label))
+            train_iterator = train_iterator.batch(self.batch_size)
+            train_iterator = train_iterator.prefetch(buffer_size=tf.data.AUTOTUNE)
+
+            test_data = test_data.shuffle(buffer_size=len(test_data))
+            test_iterator = tf.data.Dataset.from_tensor_slices((test_data.text, test_data.label))
+            test_iterator = test_iterator.batch(self.batch_size)
+            test_iterator = test_iterator.prefetch(buffer_size=tf.data.AUTOTUNE)
         else:
-            train_iterator, valid_iterator, test_iterator = data.BucketIterator.splits((
-                train_data, valid_data, test_data), batch_size=self.batch_size,
-                sort_within_batch=True, sort_key=lambda x: len(x.text))
+            train_data = train_data.shuffle(buffer_size=len(train_data))
+            train_iterator = tf.data.Dataset.from_tensor_slices((train_data.text, train_data.label))
+            train_iterator = train_iterator.batch(self.batch_size)
+            train_iterator = train_iterator.prefetch(buffer_size=tf.data.AUTOTUNE)
+
+            valid_data = valid_data.shuffle(buffer_size=len(valid_data))
+            valid_iterator = tf.data.Dataset.from_tensor_slices((valid_data.text, valid_data.label))
+    v       alid_iterator = valid_iterator.batch(self.batch_size)
+            valid_iterator = valid_iterator.prefetch(buffer_size=tf.data.AUTOTUNE)
+
+            test_data = test_data.shuffle(buffer_size=len(test_data))
+            test_iterator = tf.data.Dataset.from_tensor_slices((test_data.text, test_data.label))
+            test_iterator = test_iterator.batch(self.batch_size)
+            test_iterator = test_iterator.prefetch(buffer_size=tf.data.AUTOTUNE)
 
         # finding the weights of each label
         data_for_weight = pd.read_csv(os.path.join(self.dataset_path, self.train_file_name), sep='\t',
@@ -135,17 +189,17 @@ class data_provider_V2():
         neg_weight = overall/neg_counter
         pos_weight = overall/pos_counter
         if labels == ['neutral', 'negative', 'positive']:
-            weights = torch.Tensor([neut_weight, neg_weight, pos_weight])
+            weights = tf.constant([neut_weight, neg_weight, pos_weight])
         elif labels == ['neutral', 'positive', 'negative']:
-            weights = torch.Tensor([neut_weight, pos_weight, neg_weight])
+            weights = tf.constant([neut_weight, pos_weight, neg_weight])
         elif labels == ['negative', 'neutral', 'positive']:
-            weights = torch.Tensor([neg_weight, neut_weight, pos_weight])
+            weights = tf.constant([neg_weight, neut_weight, pos_weight])
         elif labels == ['negative', 'positive', 'neutral']:
-            weights = torch.Tensor([neg_weight, pos_weight, neut_weight])
+            weights = tf.constant([neg_weight, pos_weight, neut_weight])
         elif labels == ['positive', 'negative', 'neutral']:
-            weights = torch.Tensor([pos_weight, neg_weight, neut_weight])
+            weights = tf.constant([pos_weight, neg_weight, neut_weight])
         elif labels == ['positive', 'neutral', 'negative']:
-            weights = torch.Tensor([pos_weight, neut_weight, neg_weight])
+            weights = tf.constant([pos_weight, neut_weight, neg_weight])
 
         if self.mode == Mode.TEST:
             return test_iterator, vocab_size, PAD_IDX, UNK_IDX, pretrained_embeddings, labels
@@ -200,12 +254,40 @@ class data_provider_PostReply():
             Note: padding is done by adding <pad> (not zero!)
         :tokenize: the "tokenization" (the act of splitting the string into discrete "tokens") should be done using the spaCy tokenizer.
         '''
+        # if self.model_mode == 'RNN':
+        #     #Packed padded sequences
+        #     TEXT = data.Field(tokenize=self.tokenizer, include_lengths=True)  # For saving the length of sentences
+        # if self.model_mode == 'CNN':
+        #     TEXT = data.Field(tokenize=self.tokenizer, batch_first=True)  # batch dimension is the firs dimension here.
+        # LABEL = data.LabelField()
+        
         if self.model_mode == 'RNN':
-            #Packed padded sequences
-            TEXT = data.Field(tokenize=self.tokenizer, include_lengths=True)  # For saving the length of sentences
-        if self.model_mode == 'CNN':
-            TEXT = data.Field(tokenize=self.tokenizer, batch_first=True)  # batch dimension is the firs dimension here.
-        LABEL = data.LabelField()
+        # Packed padded sequences
+            TEXT = tf.keras.layers.Input(shape=(None,), dtype=tf.int32, name='text')  # For variable-length sequences
+            # LENGTH = tf.keras.layers.Input(shape=(), dtype=tf.int32, name='length')  # For saving the length of sentences
+            LABEL = tf.keras.layers.Input(shape=(), dtype=tf.int32, name='label')
+    
+        # # Tokenize the input text
+        #     tokenizer = Tokenizer()
+        #     text_seq = tokenizer(TEXT)
+    
+        # # Pad the sequences to have the same length
+        #     text_seq = pad_sequences(text_seq)
+    
+        # # Convert the length to a mask for the padded sequences
+        #     mask = tf.sequence_mask(LENGTH)
+    
+        elif self.model_mode == 'CNN':
+        # Batch dimension is the first dimension here
+            TEXT = tf.keras.layers.Input(shape=(None,), dtype=tf.int32, name='text')
+            LABEL = tf.keras.layers.Input(shape=(), dtype=tf.int32, name='label')
+    
+        # # Tokenize the input text
+        #     tokenizer = Tokenizer()
+        #     text_seq = tokenizer(TEXT)
+    
+        # # Pad the sequences to have the same length
+        #     text_seq = pad_sequences(text_seq, padding='post', truncating='post')
 
         fields = [('label', LABEL), ('id', None), ('text', TEXT)]
 
@@ -246,15 +328,47 @@ class data_provider_PostReply():
 
 
         # for packed padded sequences all of the tensors within a batch need to be sorted by their lengths
+        # if self.split_ratio == 1:
+        #     valid_iterator = None
+        #     train_iterator, test_iterator = data.BucketIterator.splits((
+        #         train_data, test_data), batch_size=self.batch_size,
+        #         sort_within_batch=True, sort_key=lambda x: len(x.text))
+        # else:
+        #     train_iterator, valid_iterator, test_iterator = data.BucketIterator.splits((
+        #         train_data, valid_data, test_data), batch_size=self.batch_size,
+        #         sort_within_batch=True, sort_key=lambda x: len(x.text))
+            
         if self.split_ratio == 1:
             valid_iterator = None
-            train_iterator, test_iterator = data.BucketIterator.splits((
-                train_data, test_data), batch_size=self.batch_size,
-                sort_within_batch=True, sort_key=lambda x: len(x.text))
+            train_data = train_data.shuffle(buffer_size=len(train_data))
+            train_iterator = tf.data.Dataset.from_tensor_slices((train_data.text, train_data.label))
+            train_iterator = train_iterator.shuffle(buffer_size=len(train_data))
+            train_iterator = train_iterator.padded_batch(self.batch_size, padded_shapes=([None], []))
+            train_iterator = train_iterator.prefetch(buffer_size=tf.data.AUTOTUNE)
+
+            test_data = test_data.shuffle(buffer_size=len(test_data))
+            test_iterator = tf.data.Dataset.from_tensor_slices((test_data.text, test_data.label))
+            test_iterator = test_iterator.shuffle(buffer_size=len(test_data))
+            test_iterator = test_iterator.padded_batch(self.batch_size, padded_shapes=([None], []))
+            test_iterator = test_iterator.prefetch(buffer_size=tf.data.AUTOTUNE)
         else:
-            train_iterator, valid_iterator, test_iterator = data.BucketIterator.splits((
-                train_data, valid_data, test_data), batch_size=self.batch_size,
-                sort_within_batch=True, sort_key=lambda x: len(x.text))
+            train_data = train_data.shuffle(buffer_size=len(train_data))
+            train_iterator = tf.data.Dataset.from_tensor_slices((train_data.text, train_data.label))
+            train_iterator = train_iterator.shuffle(buffer_size=len(train_data))
+            train_iterator = train_iterator.padded_batch(self.batch_size, padded_shapes=([None], []))
+            train_iterator = train_iterator.prefetch(buffer_size=tf.data.AUTOTUNE)
+
+            valid_data = valid_data.shuffle(buffer_size=len(valid_data))
+            valid_iterator = tf.data.Dataset.from_tensor_slices((valid_data.text, valid_data.label))
+            valid_iterator = valid_iterator.shuffle(buffer_size=len(valid_data))
+            valid_iterator = valid_iterator.padded_batch(self.batch_size, padded_shapes=([None], []))
+            valid_iterator = valid_iterator.prefetch(buffer_size=tf.data.AUTOTUNE)
+
+            test_data = test_data.shuffle(buffer_size=len(test_data))
+            test_iterator = tf.data.Dataset.from_tensor_slices((test_data.text, test_data.label))
+            test_iterator = test_iterator.shuffle(buffer_size=len(test_data))
+            test_iterator = test_iterator.padded_batch(self.batch_size, padded_shapes=([None], []))
+            test_iterator = test_iterator.prefetch(buffer_size=tf.data.AUTOTUNE)
 
         # finding the weights of each label
         data_for_weight = pd.read_csv(os.path.join(self.dataset_path, self.train_file_name))
@@ -273,17 +387,17 @@ class data_provider_PostReply():
         neg_weight = overall/neg_counter
         pos_weight = overall/pos_counter
         if labels == ['neutral', 'negative', 'positive']:
-            weights = torch.Tensor([neut_weight, neg_weight, pos_weight])
+            weights = tf.constant([neut_weight, neg_weight, pos_weight], dtype=tf.float32)
         elif labels == ['neutral', 'positive', 'negative']:
-            weights = torch.Tensor([neut_weight, pos_weight, neg_weight])
+            weights = tf.constant([neut_weight, pos_weight, neg_weight], dtype=tf.float32)
         elif labels == ['negative', 'neutral', 'positive']:
-            weights = torch.Tensor([neg_weight, neut_weight, pos_weight])
+            weights = tf.constant([neg_weight, neut_weight, pos_weight], dtype=tf.float32)
         elif labels == ['negative', 'positive', 'neutral']:
-            weights = torch.Tensor([neg_weight, pos_weight, neut_weight])
+            weights = tf.constant([neg_weight, pos_weight, neut_weight], dtype=tf.float32)
         elif labels == ['positive', 'negative', 'neutral']:
-            weights = torch.Tensor([pos_weight, neg_weight, neut_weight])
+            weights = tf.constant([pos_weight, neg_weight, neut_weight], dtype=tf.float32)
         elif labels == ['positive', 'neutral', 'negative']:
-            weights = torch.Tensor([pos_weight, neut_weight, neg_weight])
+            weights = tf.constant([pos_weight, neut_weight, neg_weight], dtype=tf.float32)
 
         if self.mode == Mode.TEST:
             return test_iterator
