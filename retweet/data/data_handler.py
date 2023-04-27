@@ -99,14 +99,40 @@ class data_provider_V2():
         # # Pad the sequences to have the same length
         #     text_seq = pad_sequences(text_seq, padding='post', truncating='post')
 
-        fields = [('id', None), ('user_id', None),  ('label', LABEL), ('text', TEXT)]
-        train_data, test_data = data.TabularDataset.splits(
-            path=self.dataset_path,
-            train=self.train_file_name,
-            test=self.test_file_name,
-            format=self.data_format,
-            fields=fields,
-            skip_header=False)
+        # fields = [('id', None), ('user_id', None),  ('label', LABEL), ('text', TEXT)]
+        # train_data, test_data = data.TabularDataset.splits(
+        #     path=self.dataset_path,
+        #     train=self.train_file_name,
+        #     test=self.test_file_name,
+        #     format=self.data_format,
+        #     fields=fields,
+        #     skip_header=False)
+        
+        train_file = "path/to/train.csv"
+        test_file = "path/to/test.csv"
+
+        # Load the data from the CSV files using TensorFlow's TextLineDataset
+        train_data = tf.data.TextLineDataset(train_file)
+        test_data = tf.data.TextLineDataset(test_file)
+
+        # Define the fields or columns of the CSV files
+        fields = [("id", None),
+          ('user_id', None),        
+          ("text", LABEL),
+          ("label", TEXT)]
+
+        # Define a function to parse the CSV records into their respective fields
+        def parse_csv_record(record):
+            columns = tf.io.decode_csv(record, record_defaults=[tf.int32, "", tf.int32])
+            return dict(zip([field[0] for field in fields], columns))
+
+        # Parse the CSV records into their respective fields
+        train_data = train_data.map(parse_csv_record)
+        test_data = test_data.map(parse_csv_record)
+
+        # Create a TensorFlow dataset from the parsed records
+        train_data = train_data.batch(batch_size)
+        test_data = test_data.batch(batch_size)
 
         # validation data
         if self.split_ratio == 1:
@@ -289,15 +315,40 @@ class data_provider_PostReply():
         # # Pad the sequences to have the same length
         #     text_seq = pad_sequences(text_seq, padding='post', truncating='post')
 
-        fields = [('label', LABEL), ('id', None), ('text', TEXT)]
+        # fields = [('label', LABEL), ('id', None), ('text', TEXT)]
 
-        train_data, test_data = data.TabularDataset.splits(
-            path=self.dataset_path,
-            train=self.train_file_name,
-            test=self.test_file_name,
-            format=self.data_format,
-            fields=fields,
-            skip_header=True)
+        # train_data, test_data = data.TabularDataset.splits(
+        #     path=self.dataset_path,
+        #     train=self.train_file_name,
+        #     test=self.test_file_name,
+        #     format=self.data_format,
+        #     fields=fields,
+        #     skip_header=True)
+        
+        train_file = "path/to/train.csv"
+        test_file = "path/to/test.csv"
+
+        # Load the data from the CSV files using TensorFlow's TextLineDataset
+        train_data = tf.data.TextLineDataset(train_file)
+        test_data = tf.data.TextLineDataset(test_file)
+
+        # Define the fields or columns of the CSV files
+        fields = [("label", LABEL),
+          ('id', None),        
+          ("text", TEXT)]
+
+        # Define a function to parse the CSV records into their respective fields
+        def parse_csv_record(record):
+            columns = tf.io.decode_csv(record, record_defaults=[tf.int32, "", tf.int32])
+            return dict(zip([field[0] for field in fields], columns))
+
+        # Parse the CSV records into their respective fields
+        train_data = train_data.map(parse_csv_record)
+        test_data = test_data.map(parse_csv_record)
+
+        # Create a TensorFlow dataset from the parsed records
+        train_data = train_data.batch(batch_size)
+        test_data = test_data.batch(batch_size)
 
         # validation data
         if self.split_ratio == 1:
