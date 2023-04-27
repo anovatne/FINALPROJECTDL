@@ -38,7 +38,11 @@ def main_train():
 
     # Hyper-parameters
     NUM_EPOCH = 100
+    
+    ## change
     LOSS_FUNCTION = CrossEntropyLoss
+    
+    ##change
     OPTIMIZER = optim.Adam
     BATCH_SIZE = 256
     MAX_VOCAB_SIZE = 50000 #max_vocab_size: takes the 100,000 most frequent words as the vocab
@@ -54,8 +58,11 @@ def main_train():
     EXPERIMENT_NAME = "Adam_lr" + str(lr) + "_max_vocab_size" + str(MAX_VOCAB_SIZE)
 
     if RESUME == True:
+        ## change
         params = open_experiment(EXPERIMENT_NAME)
     else:
+        
+        ## change
         params = create_experiment(EXPERIMENT_NAME)
     cfg_path = params["cfg_path"]
 
@@ -81,11 +88,17 @@ def main_train():
                        conv_out_ch=conv_out_ch, filter_sizes=filter_sizes, output_dim=OUTPUT_DIM, pad_idx=PAD_IDX, unk_idx=UNK_IDX)
 
     if RESUME == True:
+        
+        ## change
         trainer.load_checkpoint(model=MODEL, optimiser=OPTIMIZER,
                         optimiser_params=optimiser_params, loss_function=LOSS_FUNCTION, weight=weights)
     else:
+        
+        ##change
         trainer.setup_model(model=MODEL, optimiser=OPTIMIZER,
                         optimiser_params=optimiser_params, loss_function=LOSS_FUNCTION, weight=weights)
+        
+        ## change
     trainer.execute_training(train_loader=train_iterator, valid_loader=valid_iterator, batch_size=BATCH_SIZE)
 
 
@@ -236,6 +249,8 @@ def main_train_postreply():
     # Hyper-parameters
     NUM_EPOCH = 500
     LOSS_FUNCTION = CrossEntropyLoss
+    
+    ##change
     OPTIMIZER = optim.Adam
     BATCH_SIZE = 256
     MAX_VOCAB_SIZE = 750000 #max_vocab_size: takes the 100,000 most frequent words as the vocab
@@ -325,6 +340,9 @@ def main_test_postreply():
     HIDDEN_DIM = params['Network']['HIDDEN_DIM']
     conv_out_ch = params['Network']['conv_out_ch']
     MODEL_MODE = params['Network']['MODEL_MODE']
+    
+    ##change
+    
     pretrained_embeddings = torch.zeros((vocab_size, EMBEDDING_DIM))
 
     # Prepare data
@@ -367,6 +385,8 @@ def main_ensemble_test_postreply():
     HIDDEN_DIM = params_RNN['Network']['HIDDEN_DIM']
     conv_out_ch = params_CNN['Network']['conv_out_ch']
     MODEL_MODE = 'ensemble'
+    
+    ##change
     pretrained_embeddings = torch.zeros((vocab_size, EMBEDDING_DIM))
 
     # Prepare data
@@ -402,6 +422,8 @@ def test_every_epoch():
     HIDDEN_DIM = params['Network']['HIDDEN_DIM']
     conv_out_ch = params['Network']['conv_out_ch']
     MODEL_MODE = params['Network']['MODEL_MODE']
+    
+    ##change
     pretrained_embeddings = torch.zeros((vocab_size, EMBEDDING_DIM))
 
     # Prepare data

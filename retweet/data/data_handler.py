@@ -189,7 +189,7 @@ class data_provider_V2():
 
             valid_data = valid_data.shuffle(buffer_size=len(valid_data))
             valid_iterator = tf.data.Dataset.from_tensor_slices((valid_data.text, valid_data.label))
-    v       alid_iterator = valid_iterator.batch(self.batch_size)
+            valid_iterator = valid_iterator.batch(self.batch_size)
             valid_iterator = valid_iterator.prefetch(buffer_size=tf.data.AUTOTUNE)
 
             test_data = test_data.shuffle(buffer_size=len(test_data))
