@@ -12,7 +12,6 @@ from sklearn import metrics
 from enum import Enum
 
 # User Defined Modules
-from configs.serde import *
 from models.biLSTM import *
 from models.CNN import *
 
@@ -358,10 +357,6 @@ class Prediction:
             self.model_rnn.load_weights(self.params_RNN['network_output_path'] + "/epoch" + str(43) + "_" + model_file_name_r)
         else:
             self.model_p.load_weights(self.params['network_output_path'] + "/epoch" + str(epoch) + "_" + model_file_name)
-
-    def predict(self, test_loader, batch_size):
-        # Reads params to check if any params have been changed by user
-        self.params = read_config(self.cfg_path)
 
     def predict(self, test_loader, batch_size):
         # Reads params to check if any params have been changed by user
