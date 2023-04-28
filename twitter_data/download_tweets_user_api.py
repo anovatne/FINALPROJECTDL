@@ -4,7 +4,7 @@
 #
 # About: Update to download_tweets_api.py to also download the user information for a given Twitter ID. See 
 #   For more information about the task, see:
-# http://alt.qcri.org/semeval2017/task4/
+#   http://alt.qcri.org/semeval2017/task4/
 #
 # Description: This file is to be used to download the tweets and user information for
 #   SEMEVAL 2016: Sentiment Analysis in Twitter. If you are not interested in using user information, you
